@@ -1,15 +1,10 @@
 import io
 import os
-import sys
 from flask import Flask, request, send_file
 from PIL import Image
-import time
-import logging
 from base64 import b64decode
 
 import u2net
-
-logging.basicConfig(level=logging.INFO)
 
 # Initialize the Flask application
 app = Flask(__name__)
@@ -23,8 +18,6 @@ def hello():
 # Route http posts to this method
 @app.route('/postImage/', methods=['POST'])
 def run():
-    start = time.time()
-
     # Convert string data to PIL Image
     img = Image.open(io.BytesIO(b64decode(request.form['image'])))
 
@@ -35,9 +28,6 @@ def run():
     buff = io.BytesIO()
     res.save(buff, 'PNG')
     buff.seek(0)
-
-    # Print stats
-    logging.info(f'Completed in {time.time() - start:.2f}s')
 
     # Return data
     return send_file(buff, mimetype='image/png')
