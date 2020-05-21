@@ -1,12 +1,11 @@
 import io
 import os
 import sys
-from flask import Flask, request, send_file, jsonify
-from flask_cors import CORS
+from flask import Flask, request, send_file
 from PIL import Image
-import numpy as np
 import time
 import logging
+from base64 import b64decode
 
 import u2net
 
@@ -14,8 +13,6 @@ logging.basicConfig(level=logging.INFO)
 
 # Initialize the Flask application
 app = Flask(__name__)
-CORS(app)
-
 
 # Simple probe.
 @app.route('/', methods=['GET'])
@@ -24,26 +21,15 @@ def hello():
 
 
 # Route http posts to this method
-@app.route('/', methods=['POST'])
+@app.route('/postImage/', methods=['POST'])
 def run():
     start = time.time()
 
-    # Convert string of image data to uint8
-    if 'data' not in request.files:
-        return jsonify({'error': 'missing file param `data`'}), 400
-    data = request.files['data'].read()
-    if len(data) == 0:
-        return jsonify({'error': 'empty image'}), 400
-
     # Convert string data to PIL Image
-    img = Image.open(io.BytesIO(data))
-
-    # Ensure i,qge size is under 1024
-    if img.size[0] > 1024 or img.size[1] > 1024:
-        img.thumbnail((1024, 1024))
+    img = Image.open(io.BytesIO(b64decode(request.form['image'])))
 
     # Process Image
-    res = u2net.run(np.array(img))
+    res = u2net.run(img)
 
     # Save to buffer
     buff = io.BytesIO()
@@ -59,5 +45,5 @@ def run():
 
 if __name__ == '__main__':
     os.environ['FLASK_ENV'] = 'development'
-    port = int(os.environ.get('PORT', 8080))
+    port = int(os.environ.get('PORT', 5000))
     app.run(debug=True, host='0.0.0.0', port=port)

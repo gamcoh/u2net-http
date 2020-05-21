@@ -25,7 +25,7 @@ model_dir = './U-2-Net/saved_models/u2net/u2net.pth'
 
 print("Loading U-2-Net...")
 net = U2NET(3, 1)
-net.load_state_dict(torch.load(model_dir))
+net.load_state_dict(torch.load(model_dir, map_location=torch.device('cpu')))
 if torch.cuda.is_available():
     net.cuda()
 net.eval()
@@ -66,6 +66,8 @@ def preprocess(image):
 def run(img):
     torch.cuda.empty_cache()
 
+    img = np.array(img)
+
     sample = preprocess(img)
     inputs_test = sample['image'].unsqueeze(0)
     inputs_test = inputs_test.type(torch.FloatTensor)
@@ -84,9 +86,25 @@ def run(img):
     # Convert to PIL Image
     predict = predict.squeeze()
     predict_np = predict.cpu().data.numpy()
-    im = Image.fromarray(predict_np * 255).convert('RGB')
+
+    oriimg = Image.fromarray(img)
+    bin_image = Image.fromarray(predict_np * 255).convert('RGB')
+    bin_image = bin_image.resize((oriimg.width, oriimg.height), resample=Image.BILINEAR)
+    bin_image = np.array(bin_image)
+    bin_image = np.where(bin_image > 200, 1, 0) # 200 is the threshold
+    colored_img = bin_image * np.array(oriimg)
+    colored_img = Image.fromarray(colored_img.astype(np.uint8))
+    img = colored_img.convert("RGBA")
+    datas = img.getdata()
+    newData = []
+    for item in datas:
+        if item[0] == 0 and item[1] == 0 and item[2] == 0:
+            newData.append((0, 0, 0, 0))
+        else:
+            newData.append(item)
+    img.putdata(newData)
 
     # Cleanup.
-    del d1, d2, d3, d4, d5, d6, d7
+    del d1, d2, d3, d4, d5, d6, d7, newData, oriimg, bin_image, colored_img, datas
 
-    return im
+    return img
